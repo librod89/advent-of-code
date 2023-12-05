@@ -12,13 +12,11 @@ def run_v1(file)
       next
     elsif line.strip.end_with?("map:") # seed-to-soil map:
       @source, @destination = line.split(" ")[0].split("-to-")
+      @almanac[@source] = {}
       @order[@source] = @destination
     else
       dest, source, length = line.split(" ").map(&:to_i) # 50 98 2
-      (0...length).each do |num|
-        ## TODO these lengths are too long
-        @almanac["#{@source}-#{source+num}"] = "#{@destination}-#{dest+num}"
-      end
+      @almanac[@source][source] = { destination: @destination, range: length, start: dest }
     end
   end
 
@@ -35,15 +33,23 @@ def lookup_in_almanac(seed)
   num = seed
 
   while source != "location" && source != nil do
-    mapping = @almanac["#{source}-#{num}"]
-    if mapping.nil?
+    value = nil
+    @almanac[source].each do |key, v|
+      value = key if key <= num && key + v[:range] >= num
+      break unless value.nil?
+    end
+    if value.nil?
       source = @order[source]
     else
-      source, num = mapping.split("-")
+      mapping = @almanac[source][value]
+      length = num - value
+      if length < mapping[:range]
+        source = mapping[:destination]
+        num = mapping[:start] + length
+      end
     end
   end
-
-  num.to_i
+  num
 end
 
 if ARGV[0].nil?
