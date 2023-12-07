@@ -3,8 +3,6 @@
 require_relative "day-7/hand-types"
 require_relative "day-7/merge-sort"
 
-@hands = {}
-
 HAND_TYPES = {
   five_of_a_kind: 7,
   four_of_a_kind: 6,
@@ -15,13 +13,16 @@ HAND_TYPES = {
   high_card: 1
 }
 
-def run_v1(file)
+def run(file, version)
+  @hands = {}
+  @version = version
   File.open(file).each_with_index do |line, index|
     hand, bid = line.split(" ").map(&:strip)
     @hands[index] = { hand: hand, bid: bid.to_i}
   end
 
   find_hand_types
+  @hands.each { |_, hand| find_best_with_joker(hand) } if @version > 1
   calculate_rank
   calculate_winnings
 end
@@ -40,9 +41,32 @@ def find_hand_types
       hand.merge!({ type: :two_pair})
     elsif one_pair?(hand[:hand])
       hand.merge!({ type: :one_pair})
-    elsif high_card?(hand[:hand])
+    else
       hand.merge!({ type: :high_card})
     end
+  end
+end
+
+def find_best_with_joker(hand)
+  joker_count = hand[:hand].scan(/(?=J)/).count
+  hand_without_jokers = hand[:hand].scan(/[^J]/).join('')
+  if joker_count === 4
+    hand[:type] = :five_of_a_kind
+  elsif joker_count === 3
+    return hand[:type] = :five_of_a_kind if one_pair?(hand_without_jokers)
+    hand[:type] = :four_of_a_kind # high_card
+  elsif joker_count === 2
+    return hand[:type] = :five_of_a_kind if hand[:type] === :full_house
+    return hand[:type] = :four_of_a_kind if one_pair?(hand_without_jokers)
+    hand[:type] = :three_of_a_kind # high_card
+  elsif joker_count === 1
+    return hand[:type] = :five_of_a_kind if hand[:type] === :four_of_a_kind
+    return hand[:type] = :four_of_a_kind if hand[:type] === :three_of_a_kind
+    return hand[:type] = :full_house if two_pair?(hand[:hand])
+    return hand[:type] = :three_of_a_kind if one_pair?(hand_without_jokers)
+    hand[:type] = :one_pair # high_card
+  else
+    # noop
   end
 end
 
@@ -56,7 +80,7 @@ def calculate_rank
       hand.merge!({ rank: rank })
       rank += 1
     else
-      merge_sort(tied_hands.keys).each do |key|
+      merge_sort(tied_hands.keys, @version).each do |key|
         tied_hands[key].merge!({ rank: rank })
         rank += 1
       end
@@ -78,4 +102,7 @@ if ARGV[0].nil?
 end
 
 puts "::::::::::::::::: Part 1 :::::::::::::::::"
-puts run_v1(ARGV[0])
+puts run(ARGV[0], 1)
+
+puts "::::::::::::::::: Part 2 :::::::::::::::::"
+puts run(ARGV[0], 2)
