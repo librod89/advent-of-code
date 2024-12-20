@@ -22,6 +22,7 @@ end
 
 def run_v2(file)
   @patterns = []
+  @seen_patterns = {}
   @total = 0
   File.open(file).each do |line|
     next if line.strip.empty?
@@ -31,7 +32,6 @@ def run_v2(file)
       next
     end
 
-    @seen_patterns = {}
     possible_v2?(line.strip)
   end
   @total
@@ -62,12 +62,19 @@ end
 
 
 def possible_v2?(design, iter = 0, arrangement = [])
-  return false if iter > design.length
+  if iter > design.length
+    arrangement.each_with_index do |pattern, index|
+      @seen_patterns["#{pattern},#{index}"] = false
+    end
+    return
+  end
 
   if iter == design.length
-    @seen_patterns[arrangement] = true
+    arrangement.each_with_index do |pattern, index|
+      @seen_patterns["#{pattern},#{index}"] = true
+    end
     @total += 1
-    return true
+    return
   end
 
   matching_patterns = @patterns.filter do |pattern|
@@ -80,23 +87,22 @@ def possible_v2?(design, iter = 0, arrangement = [])
 
     arrangement.push(pattern)
 
-    next if @seen_patterns[arrangement]
-
     if @seen_patterns["#{pattern},#{index}"]
-      @seen_patterns[arrangement] = true
+      arrangement.each_with_index do |pattern, index|
+        @seen_patterns["#{pattern},#{index}"] = true
+      end
       @total += 1
       arrangement.pop
-      break
+      next
+    elsif @seen_patterns["#{pattern},#{index}"] === false
+      arrangement.pop
+      next
     end
 
-    is_possible = possible_v2?(design, index + pattern.length, arrangement)
-
-    @seen_patterns["#{pattern},#{index}"] = true if is_possible
+    possible_v2?(design, index + pattern.length, arrangement)
 
     arrangement.pop
   end
-
-  false
 end
 
 if ARGV[0].nil?
